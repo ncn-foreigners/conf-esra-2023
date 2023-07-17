@@ -1,0 +1,17 @@
+age;gender;country;pop;short
+18-24;Female;Belarus;2000;0,05
+18-24;Female;Ukraine;10000;0,10
+18-24;Male;Belarus;4000;0,10
+18-24;Male;Ukraine;20000;0,15
+25-29;Female;Belarus;4000;0,50
+25-29;Female;Ukraine;15000;0,65
+25-29;Male;Belarus;5000;0,45
+25-29;Male;Ukraine;30000;0,70
+30-39;Female;Belarus;6000;0,40
+30-39;Female;Ukraine;15000;0,50
+30-39;Male;Belarus;6000;0,40
+30-39;Male;Ukraine;30000;0,45
+40+;Female;Belarus;2000;0,12
+40+;Female;Ukraine;4000;0,05
+40+;Male;Belarus;2000;0,15
+40+;Male;Ukraine;4000;0,10

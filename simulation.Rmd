@@ -1,0 +1,152 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(simex)
+library(augSIMEX)
+library(misclassGLM)
+library(data.table)
+library(ggplot2)
+library(xtable)
+library(nonprobsvy)
+library(sampling)
+library(RANN)
+library(Rcpp)
+library(survey)
+library(simPo)
+```
+
+## population data
+
+```{r}
+pop_data <- fread("pop-example.csv", dec = ",")
+pop_data[, short_n := pop*short]
+pop_data[, long_n := pop - pop*short]
+pop_data_1 <- pop_data[rep(1:nrow(pop_data), pop_data$short_n), .(age, gender, country)][, short:=1]
+pop_data_2 <- pop_data[rep(1:nrow(pop_data), pop_data$long_n), .(age, gender, country)][, short:=0]
+pop_data <- rbind(pop_data_1, pop_data_2)
+nonprob_df <- pop_data[, .N, .(short)] ## prob on age
+nonprob_df[, prob:=c(0.5, 0.7)]
+pop_data[nonprob_df, prob:=i.prob, on = c("short")]
+pop_data[, flag:=rbinom(nrow(pop_data), 1, prob)]
+with(pop_data, vcd::assocstats(table(short, age)))
+with(pop_data, vcd::assocstats(table(short, gender)))
+with(pop_data, vcd::assocstats(table(short, country)))
+with(pop_data, vcd::assocstats(table(flag, age)))
+with(pop_data, vcd::assocstats(table(flag, gender)))
+with(pop_data, vcd::assocstats(table(flag, country)))
+```
+
+Measurement error
+
+```{r}
+## age 18-24 25-29 30-39   40+ 
+ages <- c("18-24", "25-29", "30-39", "40+")
+pop_data[age == ages[1], age_m := rep(x = ages, times = sum(age == ages[1])*c(0.95, 0.03, 0.01, 0.01))]
+pop_data[age == ages[2], age_m := rep(x = ages, times = sum(age == ages[2])*c(0.07, 0.90, 0.02, 0.01))]
+pop_data[age == ages[3], age_m := rep(x = ages, times = sum(age == ages[3])*c(0.05, 0.05, 0.85, 0.05))]
+pop_data[age == ages[4], age_m := rep(x = ages, times = sum(age == ages[4])*c(0.10, 0.05, 0.05, 0.80))]
+
+## gender
+pop_data[gender == "Male", gender_m := rep(x = c("Male", "Female"), times = sum(gender == "Male")*c(0.95, 0.05))]
+pop_data[gender == "Female", gender_m := rep(x = c("Male", "Female"), times = sum(gender == "Female")*c(0.20, 0.80))]
+
+## country
+pop_data[country == "Belarus", country_m := rep(x = c("Belarus", "Ukraine"), times = sum(country == "Belarus")*c(0.90, 0.10))]
+pop_data[country == "Ukraine", country_m := rep(x = c("Belarus", "Ukraine"), times = sum(country == "Ukraine")*c(0.05, 0.95))]
+
+## stay
+pop_data[short == 0, short_m := rep(x = 0:1, times = sum(short==0)*c(0.80, 0.20))]
+pop_data[short == 1, short_m := rep(x = 0:1, times = sum(short==1)*c(0.10, 0.90))]
+```
+
+## Case 1
+
+- misclass in one variable: x1
+
+```{r}
+N <- nrow(pop_data)
+n <- 2000
+R <- 50
+result_case1 <- matrix(data = 0, nrow = R, ncol = 1 + 3*3) 
+for (r in 1:R) {
+  set.seed(r)
+  print(r)
+  sample_nonprob <- pop_data[, flag:=rbinom(nrow(pop_data), 1, prob)][flag == 1]
+  sample_prob <- pop_data[sample(1:nrow(pop_data), size = n), ]
+  sample_prob[, w:=N/n]
+  ## in sample survey we observe it without error
+  sample_prob[, age_m := age]
+  sample_prob_svy <- svydesign(ids=~1, weights =~w, data = sample_prob)
+  
+  ## without error
+  ipw_y1 <- nonprob(selection = ~ age + gender + country,
+                    target = ~ short,
+                    svydesign = sample_prob_svy,
+                    data = sample_nonprob)
+  
+  mi_y1 <- nonprob(outcome = short ~ age + gender + country,
+                   svydesign = sample_prob_svy,
+                   data = sample_nonprob,
+                   method_outcome = "glm",
+                   family_outcome = "binomial")
+  
+  dr_y1 <- nonprob(selection = ~  age + gender + country,
+                   outcome = short ~ age + gender + country,
+                   svydesign = sample_prob_svy,
+                   data = sample_nonprob,
+                   method_outcome = "nn")
+  
+  ## with error in age
+  
+  ipw_y1_age <- nonprob(selection = ~ age_m + gender + country,
+                    target = ~ short,
+                    svydesign = sample_prob_svy,
+                    data = sample_nonprob)
+  
+  mi_y1_age <- nonprob(outcome = short ~ age_m + gender + country,
+                   svydesign = sample_prob_svy,
+                   data = sample_nonprob,
+                   method_outcome = "nn")
+  
+  dr_y1_age <- nonprob(selection = ~  age_m + gender + country,
+                   outcome = short ~ age_m + gender + country,
+                   svydesign = sample_prob_svy,
+                   data = sample_nonprob,
+                   method_outcome = "nn")
+  
+  ## with error in age and short
+  
+  ipw_y1_age_s <- nonprob(selection = ~ age_m + gender + country,
+                    target = ~ short_m,
+                    svydesign = sample_prob_svy,
+                    data = sample_nonprob)
+  
+  mi_y1_age_s <- nonprob(outcome = short_m ~ age_m + gender + country,
+                   svydesign = sample_prob_svy,
+                   data = sample_nonprob,
+                   method_outcome = "nn")
+  
+  dr_y1_age_s <- nonprob(selection = ~  age_m + gender + country,
+                   outcome = short_m ~ age_m + gender + country,
+                   svydesign = sample_prob_svy,
+                   data = sample_nonprob,
+                   method_outcome = "nn")
+  
+  result_case1[r,] <- c(mean(sample_nonprob$short), 
+                        ipw_y1$output$mean, mi_y1$output$mean, dr_y1$output$mean,
+                        ipw_y1_age$output$mean, mi_y1_age$output$mean, dr_y1_age$output$mean,
+                        ipw_y1_age_s$output$mean, mi_y1_age_s$output$mean, dr_y1_age$output$mean)
+}
+
+```
+
+```{r}
+boxplot(result_case1)
+abline(h = mean(pop_data$short), col = "red")
+```
+
+## Case 2 -- all x
+
