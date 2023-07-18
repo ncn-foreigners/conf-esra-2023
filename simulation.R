@@ -46,12 +46,17 @@ pop_data[short == 1, short_m := rep(x = 0:1, times = round(sum(short==1)*c(0.05,
 N <- nrow(pop_data)
 n <- 1000
 n_valid <- 1000
-R <- 1000
+R <- 500
 result_case <- list()
 
 for (r in 1:R) {
-  set.seed(2023+r)
+  set.seed(23+r)
   print(r)
+  
+  if (r %% 25 == 0) {
+    saveRDS(result_case, file = "results-whole-1000-list.rds")
+  }
+  
   sample_nonprob <- pop_data[, flag:=rbinom(nrow(pop_data), 1, prob)][flag == 1]
   
   ## validation sample
@@ -306,7 +311,8 @@ for (r in 1:R) {
                                  mi_all_errall_simexnn = mi_y1_all_simex_est_nn,
                                  dr_all_errall = dr_y1_all$output$mean,
                                  dr_all_errall_corr = dr_y1_all_corr$output$mean)
+
 }
 
 result_case_df <- rbindlist(result_case)
-saveRDS(result_case_df, file = "results-whole-1000.rds")
+saveRDS(result_case_df, file = "results-whole-1000-new.rds")

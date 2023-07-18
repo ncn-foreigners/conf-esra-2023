@@ -67,6 +67,8 @@ pop_data[short == 1, short_m := rep(x = 0:1, times = round(sum(short==1)*c(0.05,
 
 ```{r}
 result_case_df <- readRDS("results-whole-1000.rds")
+result_case_df2 <- readRDS("results-whole-1000-new.rds")
+result_case_df <- rbind(result_case_df,result_case_df2)
 ```
 
 ```{r}
@@ -87,7 +89,8 @@ results |>
             corr = factor(corr, c("no", "corr", "simexmi", "simexnn"), 
                           c("No correction", "Imputation (SHD)", 
                             "MCSIMEX Prediction", "MCSIMEX Nearest Neigbour"))) |>
-  subset(!(err == "No" & vars == "Age only")) |> 
+  subset(!(err == "No error" & vars == "Age only")) |> 
+  #subset(err != "No error") |> 
   ggplot(data = _, aes(x = est, y = value,fill = corr) ) +
   geom_violin(position = "dodge", draw_quantiles = c(0.25,0.5,0.75)) +
   #geom_boxplot() +
@@ -96,6 +99,9 @@ results |>
   scale_y_continuous(labels = percent) + 
   geom_hline(yintercept = mean(pop_data$short), linetype= "dashed", color = "red") +
   labs(x = "Estimator", y = "Estimated share", fill = "Correction method") +
-  theme(legend.position = "bottom", legend.box= "vertical")
+  theme(legend.position = "bottom", legend.box= "vertical") 
+  #guides(fill = guide_legend(nrow=2, byrow=TRUE))
+
+ggsave(filename = "sim-plot.png", width = 10, height = 5)
 ```
 
