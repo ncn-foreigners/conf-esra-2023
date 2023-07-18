@@ -65,6 +65,9 @@ pop_data[short == 0, short_m := rep(x = 0:1, times = round(sum(short==0)*c(0.70,
 pop_data[short == 1, short_m := rep(x = 0:1, times = round(sum(short==1)*c(0.05, 0.95)))]
 ```
 
+```{r}
+result_case_df <- readRDS("results-whole-1000.rds")
+```
 
 ```{r}
 results <- result_case_df |> 
@@ -77,70 +80,22 @@ results <- result_case_df |>
 
 
 results |> 
-  transform(err=factor(err, c("no", "errno", "errage", "errall"), c("No", "No", "Age and Y only", "All")),
+  transform(err = factor(err, c("no", "errno", "errage", "errall"), 
+                         c("No error", "No error", "Y and age only", "All")),
             est = factor(est, c("naive", "ipw", "mi", "dr"), c("Naive", "IPW", "MI", "DR")),
             vars = factor(vars,  c("no", "age", "all"), c("No", "Age only", "All vars")),
-            corr = factor(corr, c("no", "corr", "simexmi", "simexnn"), c("No imp", "Imp", "SIMEX Pred", "Simex NN"))) |> 
-  subset(est != "naive") |> 
+            corr = factor(corr, c("no", "corr", "simexmi", "simexnn"), 
+                          c("No correction", "Imputation (SHD)", 
+                            "MCSIMEX Prediction", "MCSIMEX Nearest Neigbour"))) |>
+  subset(!(err == "No" & vars == "Age only")) |> 
   ggplot(data = _, aes(x = est, y = value,fill = corr) ) +
-  geom_violin(position = "dodge", draw_quantiles = c(0.25,0.5,0.75), scale = "width") +
-  facet_nested(~err+est, scales = "free_x") +
+  geom_violin(position = "dodge", draw_quantiles = c(0.25,0.5,0.75)) +
+  #geom_boxplot() +
+  facet_nested(~err+est, scales = "free_x", nest_line = element_line(colour = "grey")) +
   scale_fill_brewer(type = "qual", palette = "Set2") +
   scale_y_continuous(labels = percent) + 
   geom_hline(yintercept = mean(pop_data$short), linetype= "dashed", color = "red") +
-  labs(x = "Estimator", y = "Estimated share")
-```
-
-Simex
-
-```{r}
-short_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(short_m, short), margin = 1))
-age_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(age_m, age), margin = 1))
-age_mat[1, 3:4] <- age_mat[1, 3]/2
-gender_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(gender_m, gender), margin = 1))
-country_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(country_m, country), margin = 1))
-
-
-res1 <- mcsimex(model = glm(short_m ~ age_m + gender_m + country_m, 
-                            data = sample_nonprob_simex, 
-                            family = binomial, 
-                            x = TRUE),
-                mc.matrix = list(short_m = short_mat,
-                                 age_m = age_mat,
-                                 gender_m = gender_mat,
-                                 country_m = country_mat),
-                SIMEXvariable = c("short_m", "age_m", "gender_m", "country_m"),
-                jackknife.estimation=FALSE,
-                fitting.method = "quadratic",
-                asymptotic = F,
-                B = 1)
-
-mism <- glm(short_m ~ age_m, data = sample_nonprob, family = binomial, x = TRUE)
-truem <- glm(short ~ age, data = sample_nonprob, family = binomial, x = TRUE)
-
-sample_prob$short_pred <- predict(res1, newdata = sample_prob, type = "response")
-mean(sample_prob$short_pred)
-sample_nonprob$short_pred <- predict(res1, newdata = sample_nonprob, type = "response")
-
-inds <- nn2(data = sample_nonprob$short_pred, query = sample_prob$short_pred, k=1)
-mean(as.numeric(as.character(sample_nonprob$short_m[inds$nn.idx[,1]])))
- 
-```
-
-```{r}
-data(ToyUni)
-example1<-augSIMEX(mainformula = Y ~ Xstar + Zstar + W, family = binomial(link = logit),
-                   meformula = Xstar ~ X + Z + W,
-                   data = ToyUni$Main,
-                   validationdata = ToyUni$Validation,
-                   subset = NULL,
-                   err.var = "Xstar",
-                   err.true = "X",
-                   mis.true = "Z",
-                   lambda = NULL,
-                   M = 5, B = 2,
-                   nBoot = 2,
-                   extrapolation = "quadratic")                   
-summary(example1)
+  labs(x = "Estimator", y = "Estimated share", fill = "Correction method") +
+  theme(legend.position = "bottom", legend.box= "vertical")
 ```
 

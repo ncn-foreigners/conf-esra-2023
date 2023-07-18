@@ -46,10 +46,10 @@ pop_data[short == 1, short_m := rep(x = 0:1, times = round(sum(short==1)*c(0.05,
 N <- nrow(pop_data)
 n <- 1000
 n_valid <- 1000
-R <- 50
+R <- 1000
 result_case <- list()
 
-for (r in 1:50) {
+for (r in 1:R) {
   set.seed(2023+r)
   print(r)
   sample_nonprob <- pop_data[, flag:=rbinom(nrow(pop_data), 1, prob)][flag == 1]
@@ -70,7 +70,7 @@ for (r in 1:50) {
   gender_mat <- with(pop_data, prop.table(table(gender_m, gender), margin = 1))
   country_mat <- with(pop_data, prop.table(table(country_m, country), margin = 1))
   
-  ## estimated error rates
+  ## estimated error rates -- data is sparse ...
   # short_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(short_m, short), margin = 1))
   # age_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(age_m, age), margin = 1))
   # gender_mat <- with(sample_nonprob[id %in% sample_nonprob_valid], prop.table(table(gender_m, gender), margin = 1))
@@ -309,4 +309,4 @@ for (r in 1:50) {
 }
 
 result_case_df <- rbindlist(result_case)
-saveRDS(result_case_df, file = "results-whole.rds")
+saveRDS(result_case_df, file = "results-whole-1000.rds")
