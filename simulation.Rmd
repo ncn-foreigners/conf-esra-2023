@@ -31,12 +31,34 @@ nonprob_df <- pop_data[, .N, .(short)] ## prob on age
 nonprob_df[, prob:=c(0.5, 0.7)]
 pop_data[nonprob_df, prob:=i.prob, on = c("short")]
 pop_data[, flag:=rbinom(nrow(pop_data), 1, prob)]
+
+pop_data[,.N, keyby=.(age, gender, country, short)][, .(N_tot=sum(N), sh=sum(short*N)/sum(N)*100), keyby=.(age, gender, country)][] |> 
+  xtable(digits =0) |> 
+  print.xtable(include.rownames = F)
+
+nonprob_df[, prob:=c(0.5, 0.7)] |> 
+  xtable() |> 
+  print.xtable(include.rownames = F)
+```
+
+
+```{r}
+rbind(
+  pop_data[,.N, keyby=.(var=age, short)][, .(N_tot=sum(N), sh=sum(short*N)/sum(N)*100), keyby=.(var)][],
+  pop_data[,.N, keyby=.(var=gender, short)][, .(N_tot=sum(N), sh=sum(short*N)/sum(N)*100), keyby=.(var)][],
+  pop_data[,.N, keyby=.(var=country, short)][, .(N_tot=sum(N), sh=sum(short*N)/sum(N)*100), keyby=.(var)][],
+  fill = T
+) |> 
+  xtable() |> 
+  print.xtable(include.rownames = F)
+  
 ```
 
 ```{r}
 with(pop_data, vcd::assocstats(table(short, age)))
 with(pop_data, vcd::assocstats(table(short, gender)))
 with(pop_data, vcd::assocstats(table(short, country)))
+with(pop_data, vcd::assocstats(table(flag, short)))
 with(pop_data, vcd::assocstats(table(flag, age)))
 with(pop_data, vcd::assocstats(table(flag, gender)))
 with(pop_data, vcd::assocstats(table(flag, country)))
@@ -65,6 +87,19 @@ pop_data[short == 0, short_m := rep(x = 0:1, times = round(sum(short==0)*c(0.70,
 pop_data[short == 1, short_m := rep(x = 0:1, times = round(sum(short==1)*c(0.05, 0.95)))]
 ```
 
+
+```{r}
+xtabs( ~ age + age_m, pop_data) |> 
+  {\(x) prop.table(x, margin = 1)*100}() |> xtable(digits = 0)
+xtabs( ~ gender + gender_m, pop_data) |> 
+  {\(x) prop.table(x, margin = 1)*100}() |> xtable(digits = 0)
+xtabs( ~ country + country_m, pop_data) |> 
+  {\(x) prop.table(x, margin = 1)*100}() |> xtable(digits = 0)
+
+xtabs( ~ short + short_m, pop_data) |> 
+  {\(x) prop.table(x, margin = 1)*100}() |> xtable(digits = 0)
+```
+
 ```{r}
 result_case_df <- readRDS("results-whole-1000.rds")
 result_case_df2 <- readRDS("results-whole-1000-new.rds")
@@ -88,7 +123,7 @@ results |>
             vars = factor(vars,  c("no", "age", "all"), c("No", "Age only", "All vars")),
             corr = factor(corr, c("no", "corr", "simexmi", "simexnn"), 
                           c("No correction", "Imputation (SHD)", 
-                            "MCSIMEX Prediction", "MCSIMEX Nearest Neigbour"))) |>
+                            "MCSIMEX Prediction", "MCSIMEX Nearest Neighbour"))) |>
   subset(!(err == "No error" & vars == "Age only")) |> 
   #subset(err != "No error") |> 
   ggplot(data = _, aes(x = est, y = value,fill = corr) ) +
@@ -103,5 +138,25 @@ results |>
   #guides(fill = guide_legend(nrow=2, byrow=TRUE))
 
 ggsave(filename = "sim-plot.png", width = 10, height = 5)
+```
+
+```{r}
+results_tab <- results |> 
+  transform(err = factor(err, c("no", "errno", "errage", "errall"), 
+                         c("No error", "No error", "Y and age only", "All")),
+            est = factor(est, c("naive", "ipw", "mi", "dr"), c("Naive", "IPW", "MI", "DR")),
+            vars = factor(vars,  c("no", "age", "all"), c("No", "Age only", "All vars")),
+            corr = factor(corr, c("no", "corr", "simexmi", "simexnn"), 
+                          c("No correction", "Imputation (SHD)", 
+                            "MCSIMEX Prediction", "MCSIMEX Nearest Neighbour"))) |>
+  subset(!(err == "No error" & vars == "Age only")) |> 
+  {\(x) x[, .(e=mean(value),v=var(value)), keyby=.(est, vars, err, corr)][
+    , bias:=e-mean(pop_data$short)][
+      ,rmse:=sqrt(bias^2+v)][
+        , relbias:=bias/mean(pop_data$short)*100]}()
+
+results_tab[err %in% c("No error", "All"), .(est, err, corr, bias, rmse, relbias)][order(est, err, corr)] |> 
+  xtable(digits = 4) |> 
+  print.xtable(include.rownames = F)
 ```
 

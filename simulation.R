@@ -94,7 +94,7 @@ for (r in 1:R) {
   sample_nonprob_all <- sample_nonprob_all |> impute_shd(age + gender + country + short ~ age_m + gender_m + country_m + short_m, k = 1) 
   sample_nonprob_all[, short:=as.numeric(short)]
   
-  sample_prob <- pop_data[sample(1:nrow(pop_data), size = n), ]
+  sample_prob <- copy(pop_data[sample(1:nrow(pop_data), size = n), ])
   sample_prob[, w:=N/n]
   ## in sample survey we observe it without error
   sample_prob[, age_m := age]
