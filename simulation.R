@@ -85,7 +85,7 @@ for (r in 1:R) {
   sample_nonprob_age <- copy(sample_nonprob)
   sample_nonprob_age[, ":="(short_t=short, age_t=age, gender_t=gender, country_t = country)]
   sample_nonprob_age[!id %in% sample_nonprob_valid, ":="(age=NA)]
-  sample_nonprob_age <- sample_nonprob_age |> impute_shd(age ~ age_m + gender + country + short, k = 1) 
+  sample_nonprob_age <- sample_nonprob_age |> impute_shd(age ~ age_m, k = 1) 
   
   ## imputation of all variables
   sample_nonprob_all <- copy(sample_nonprob)
@@ -288,7 +288,7 @@ for (r in 1:R) {
   
   
   result_case[[r]] <- data.table(iter= r,
-                                 naive = c(mean(sample_nonprob$short)), 
+                                 naive = c(mean(sample_nonprob$short_m)), 
                                  ipw_all_errno = ipw_y1$output$mean,
                                  mi_all_errno = mi_y1$output$mean,
                                  dr_all_errno = dr_y1$output$mean,

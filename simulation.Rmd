@@ -16,6 +16,7 @@ library(survey)
 library(simputation)
 library(scales)
 library(ggh4x)
+library(vcd)
 ```
 
 ## population data
@@ -54,14 +55,42 @@ rbind(
   
 ```
 
+Cramer's V before and after
 ```{r}
-with(pop_data, vcd::assocstats(table(short, age)))
+with(pop_data, vcd::assocstats(table(short, age))$cramer)
+with(pop_data, vcd::assocstats(table(short, age_m)))
 with(pop_data, vcd::assocstats(table(short, gender)))
 with(pop_data, vcd::assocstats(table(short, country)))
 with(pop_data, vcd::assocstats(table(flag, short)))
 with(pop_data, vcd::assocstats(table(flag, age)))
 with(pop_data, vcd::assocstats(table(flag, gender)))
 with(pop_data, vcd::assocstats(table(flag, country)))
+
+cr_before <- with(pop_data, 
+                  data.frame(measurement = "without error", 
+                             age = assocstats(table(short, age))$cramer,
+                             gender = assocstats(table(short, gender))$cramer,
+                             country = assocstats(table(short, country))$cramer,
+                             age_inc = assocstats(table(flag, age))$cramer,
+                             gender_inc = assocstats(table(flag, gender))$cramer,
+                             country_inc = assocstats(table(flag, country))$cramer,
+                             short_inc = assocstats(table(flag, short))$cramer
+                             ))
+
+cr_after <- with(pop_data, 
+                  data.frame(measurement = "with error", 
+                             age = assocstats(table(short_m, age_m))$cramer,
+                             gender = assocstats(table(short_m, gender_m))$cramer,
+                             country = assocstats(table(short_m, country_m))$cramer,
+                             age_inc = assocstats(table(flag, age_m))$cramer,
+                             gender_inc = assocstats(table(flag, gender_m))$cramer,
+                             country_inc = assocstats(table(flag, country_m))$cramer,
+                             short_inc = assocstats(table(flag, country_m))$cramer
+                             ))
+
+rbind(cr_before, cr_after) |> 
+  xtable(digits = 2) |> 
+  print.xtable(include.rownames = F)
 ```
 
 Measurement error
